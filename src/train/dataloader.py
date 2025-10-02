@@ -9,7 +9,7 @@ import threading
 import numpy as np
 import math
 
-class CSVDataset(Dataset):
+class CSVDataloader(Dataset):
     def __init__(self, chunk):
         self.df = chunk
         self.len = len(self.df)
@@ -52,4 +52,4 @@ class CSVDataset(Dataset):
                     feature2[:, 3:9] = feature2[:, 2:8] / 250
                     output[:, 3] = feature2[:, 3] - 1.2465
 
-        return  feature1, feature2, output
+        return  {"X":feature1, "command":feature2, "target":output}

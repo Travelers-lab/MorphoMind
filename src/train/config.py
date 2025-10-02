@@ -44,6 +44,7 @@ class TrainingConfig:
     train_data_path: str = './data/train'
     val_data_path: str = './data/val'
     test_data_path: str = './data/test'
+    chunk_size: int = 65535
     
     # Experiment settings
     experiment_name: str = 'morpho_model_exp'

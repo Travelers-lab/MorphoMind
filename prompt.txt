@@ -1,0 +1,11 @@
+请为AI写一个英文的提示词，这个提示次的目标是指导AI根据现有的可供调用网络模块搭建一个用于机器人运动建模的网络MorphModel.
+现有模块包括：MultiModalFusionBlock（用来进行信息融合），BaseInputEncoding（输入信息编码的父类），BackboneBlock（主干网络模块）。
+模型的功能描述：模型为一个encoder-docoder的网络架构，encoder的输入信息是一个张量，内部包括[ID号，关节速度，关节位置]。deconder的输入信息包括n
+个点的[位置，速度，受力]以及encoder的输出信息,输出是对应关节数量的指令包含[position, velocity,torque]。
+模型的数据pipeline:模型首先接收一个输入信息X[batchize, n, 25],首先进行输入编码将[batch_size, n, 0]输入到ESkinEncoderEncoding中（父类为BaseInputEncoding）输出e_skin_encodding:[batchsize, n, hidden]，将[batchsize, 0, 1:13]重新整形成[batchize, 12, 1]输入到PosiitonEncoderEncoding中得到position_encodding:[batchize, 12, hidden]，将[batchsize, 0, 13:25]重新整形成[batchize, 12, 1]输入到VelocityEncoderEncoding中得到velcocity_encodding: [batchize, 12, hidden]，最后将这三个编码后的数据导入到由MultiModalFusionBlock搭建的编码模块中，这个模型块由4层MultiModalFusionBlock构成，e_skin_encodding作为Q， position_encodding作为K， velcocity_encodding作为V输入到网络中，在循环时编码时，每次返回的结果作为Q输入到网络中。随后将输出结果输入到由4层BackboneBlock组成的主干网络中得到encoder_output:[batchsize, n, hidden]的输出.decoder接收的输入信息是，command[batch_size, n, 9],其中[batchize, n, 0:3]输入到空间位置编码中（请自主设计编码单元）得到[batch_size, n, hidden]，其中[batchize, n, 3:6]输入到空间速度编码单元中（请自主设计编码单元）得到[batch_size, n, hidden]，其中[batchize, n, 6:9]输入到空间力编码单元中（请自主设计编码单元）得到[batch_size, n, hidden]，然后将这3个编码后的输出张量作为K，V 与encoder_output作为Q输入到由多层BackboneBlock构成的主干网络，最后经过输出解码（请自主设计解码模块）得到[batch_size, 3, 12]。
+.
+训练网络，注意可视化，
+
+
+
+请为AI写一个英文的提示词，让它根据目前一些写好的一个模型MorphoModel写一个用于训练的工程目录。写在./src/train路径下。

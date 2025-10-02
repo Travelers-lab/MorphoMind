@@ -1,11 +1,12 @@
 import torch
+import pandas as pd
 import torch.nn as nn
 from torch.cuda.amp import GradScaler, autocast
+from torch.utils.data import DataLoader
 import time
 from typing import Dict, Tuple, Optional
-import numpy as np
 from .utils import AverageMeter, save_checkpoint
-
+from.dataloader import CSVDataloader
 
 class Trainer:
     """Training manager for MorphoModel."""
@@ -65,66 +66,70 @@ class Trainer:
         data_time = AverageMeter()
         
         end_time = time.time()
-        
-        for batch_idx, batch in enumerate(self.train_loader):
-            # Data loading time
-            data_time.update(time.time() - end_time)
-            
-            # Move data to device
-            X = batch['X'].to(self.device, non_blocking=True)
-            command = batch['command'].to(self.device, non_blocking=True)
-            target = batch['target'].to(self.device, non_blocking=True)
-            
-            # Forward pass with mixed precision
-            if self.config.mixed_precision:
-                with autocast():
+        for chunk_id,  chunk in enumerate(pd.read_csv(self.config.train_data_path, chunksize=self.config.chunk_size)):
+            chunk = pd.DataFrame(chunk.values, columns=chunk.columns)
+            datasets = CSVDataloader(chunk)
+            data_loader = DataLoader(datasets, batch_size=self.config.batch_size, shuffle=True,
+                                      num_workers=4)
+            for batch_idx, batch in enumerate(data_loader):
+                # Data loading time
+                data_time.update(time.time() - end_time)
+
+                # Move data to device
+                X = batch['X'].to(self.device, non_blocking=True)
+                command = batch['command'].to(self.device, non_blocking=True)
+                target = batch['target'].to(self.device, non_blocking=True)
+
+                # Forward pass with mixed precision
+                if self.config.mixed_precision:
+                    with autocast():
+                        predictions = self.model(X, command)
+                        loss, loss_components = self.loss_function(predictions, target)
+                else:
                     predictions = self.model(X, command)
                     loss, loss_components = self.loss_function(predictions, target)
-            else:
-                predictions = self.model(X, command)
-                loss, loss_components = self.loss_function(predictions, target)
-            
-            # Backward pass
-            self.optimizer.zero_grad()
-            
-            if self.config.mixed_precision:
-                self.scaler.scale(loss).backward()
-                
-                # Gradient clipping
-                if self.config.grad_clip_norm > 0:
-                    self.scaler.unscale_(self.optimizer)
-                    torch.nn.utils.clip_grad_norm_(
-                        self.model.parameters(), 
-                        self.config.grad_clip_norm
-                    )
-                
-                self.scaler.step(self.optimizer)
-                self.scaler.update()
-            else:
-                loss.backward()
-                
-                # Gradient clipping
-                if self.config.grad_clip_norm > 0:
-                    torch.nn.utils.clip_grad_norm_(
-                        self.model.parameters(),
-                        self.config.grad_clip_norm
-                    )
-                
-                self.optimizer.step()
-            
-            # Update metrics
-            loss_meter.update(loss.item(), X.size(0))
-            batch_time.update(time.time() - end_time)
-            end_time = time.time()
-            
-            # Logging
-            if batch_idx % self.config.log_frequency == 0:
-                print(f'Train Epoch: {self.current_epoch} '
-                      f'[{batch_idx}/{len(self.train_loader)} '
-                      f'({100. * batch_idx / len(self.train_loader):.0f}%)]\t'
-                      f'Loss: {loss.item():.6f} '
-                      f'Data: {data_time.avg:.3f}s '
-                      f'Batch: {batch_time.avg:.3f}s')
+
+                # Backward pass
+                self.optimizer.zero_grad()
+
+                if self.config.mixed_precision:
+                    self.scaler.scale(loss).backward()
+
+                    # Gradient clipping
+                    if self.config.grad_clip_norm > 0:
+                        self.scaler.unscale_(self.optimizer)
+                        torch.nn.utils.clip_grad_norm_(
+                            self.model.parameters(),
+                            self.config.grad_clip_norm
+                        )
+
+                    self.scaler.step(self.optimizer)
+                    self.scaler.update()
+                else:
+                    loss.backward()
+
+                    # Gradient clipping
+                    if self.config.grad_clip_norm > 0:
+                        torch.nn.utils.clip_grad_norm_(
+                            self.model.parameters(),
+                            self.config.grad_clip_norm
+                        )
+
+                    self.optimizer.step()
+
+                # Update metrics
+                loss_meter.update(loss.item(), X.size(0))
+                batch_time.update(time.time() - end_time)
+                end_time = time.time()
+
+                # Logging
+                if batch_idx % self.config.log_frequency == 0:
+                    print(f'Train Epoch: {self.current_epoch} '
+                          f'[{batch_idx}/{len(self.train_loader)} '
+                          f'({100. * batch_idx / len(self.train_loader):.0f}%)]\t'
+                          f'Loss: {loss.item():.6f} '
+                          f'Data: {data_time.avg:.3f}s '
+                          f'Batch: {batch_time.avg:.3f}s')
         
         return {
             'loss': loss_meter.avg,

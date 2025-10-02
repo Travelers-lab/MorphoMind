@@ -19,8 +19,8 @@ sys.path.append(str(Path(__file__).parent.parent))
 import torch
 import torch.backends.cudnn as cudnn
 
-from config import TrainingConfig
-from dataloader import create_dataloaders
+from .config import TrainingConfig
+from dataloader import create_dataloaders, CSVDataloader
 from model import create_model
 from loss import create_loss_function
 from optimizer import create_optimizer_and_scheduler
