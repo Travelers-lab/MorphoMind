@@ -41,7 +41,7 @@ class TrainingConfig:
     
     # Data paths
     data_root: str = './data'
-    train_data_path: str = './data/train'
+    train_data_path: str = '/mnt/data/morpho_mind/datasets/training_datasets_DAI.csv'
     val_data_path: str = './data/val'
     test_data_path: str = './data/test'
     chunk_size: int = 65535

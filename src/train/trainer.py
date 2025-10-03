@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 import time
 from typing import Dict, Tuple, Optional
 from .utils import AverageMeter, save_checkpoint
-from.dataloader import CSVDataloader
+from dataloader import CSVDataloader
 
 class Trainer:
     """Training manager for MorphoModel."""
